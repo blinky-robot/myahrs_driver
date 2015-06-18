@@ -113,7 +113,7 @@ public:
       if(start() == false) break;
       //Euler angle(x, y, z axis)
       //IMU(linear_acceleration, angular_velocity, magnetic_field)
-      if(cmd_binary_data_format("EULER, IMU") == false) break;
+      if(cmd_binary_data_format("QUATERNION, IMU") == false) break;
       // 100Hz
       if(cmd_divider("1") == false) break;
       // Binary and Continue mode
@@ -172,22 +172,11 @@ public:
 
     static double convertor_g2a  = 9.80665;    // for linear_acceleration (g to m/s^2)
     static double convertor_d2r  = M_PI/180.0; // for angular_velocity (degree to radian)
-    static double convertor_r2d  = 180.0/M_PI; // for easy understanding (radian to degree)
     static double convertor_ut2t = 1000000;    // for magnetic_field (uT to Tesla)
-    static double convertor_c    = 1.0;        // for temperature (celsius)
-
-    double roll, pitch, yaw;
-
-    // original sensor data used the degree unit, convert to radian (see ROS REP103)
-    // we used the ROS's axes orientation like x forward, y left and z up
-    // so changed the y and z aixs of myAHRS+ board
-    roll  =  sensor_data_.euler_angle.roll*convertor_d2r;
-    pitch = -sensor_data_.euler_angle.pitch*convertor_d2r;
-    yaw   = -sensor_data_.euler_angle.yaw*convertor_d2r;
 
     ImuData<float>& imu = sensor_data_.imu;
 
-    tf::Quaternion orientation = tf::createQuaternionFromRPY(roll, pitch, yaw);
+    tf::Quaternion orientation(sensor_data_.quaternion.x, sensor_data_.quaternion.y, sensor_data_.quaternion.z, sensor_data_.quaternion.w);
 
     ros::Time now = ros::Time::now();
 
@@ -200,10 +189,7 @@ public:
     imu_magnetic_msg.header.frame_id = frame_id_;
 
     // orientation
-    imu_data_msg.orientation.x = orientation[0];
-    imu_data_msg.orientation.y = orientation[1];
-    imu_data_msg.orientation.z = orientation[2];
-    imu_data_msg.orientation.w = orientation[3];
+    tf::quaternionTFToMsg(orientation, imu_data_msg.orientation);
 
     // original data used the g unit, convert to m/s^2
     imu_data_raw_msg.linear_acceleration.x =
@@ -236,7 +222,7 @@ public:
     imu_temperature_pub_.publish(imu_temperature_msg);
 
     // publish tf
-    broadcaster_.sendTransform(tf::StampedTransform(tf::Transform(tf::createQuaternionFromRPY(roll, pitch, yaw),
+    broadcaster_.sendTransform(tf::StampedTransform(tf::Transform(orientation,
                                                                   tf::Vector3(0.0, 0.0, 0.0)),
                                                     ros::Time::now(), frame_id_, parent_frame_id_));
   }
