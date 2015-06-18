@@ -180,6 +180,15 @@ public:
     ImuData<float>& imu = sensor_data_.imu;
 
     tf::Quaternion orientation(sensor_data_.quaternion.x, sensor_data_.quaternion.y, sensor_data_.quaternion.z, sensor_data_.quaternion.w);
+    if (orientation.x() != orientation.x() ||
+        orientation.y() != orientation.y() ||
+        orientation.z() != orientation.z() ||
+        orientation.w() != orientation.w())
+    {
+      ROS_WARN_THROTTLE(2, "Got NaN values in quaternion from sensor. Discarding result.");
+      return;
+    }
+    orientation.normalize();
 
     ros::Time now = ros::Time::now();
 
